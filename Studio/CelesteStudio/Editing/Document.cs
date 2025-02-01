@@ -139,21 +139,12 @@ public class Document : IDisposable {
     private void OnTextChanged(Dictionary<int, string> insertions, Dictionary<int, string> deletions)
         => Application.Instance.Invoke(() => TextChanged?.Invoke(this, insertions, deletions));
 
-    /// Formats lines of a file into a single string, using consistent formatting rules
+    /// Formats lines of a file into a single string
     public static string FormatLinesToText(IEnumerable<string> lines) {
-        return string.Join("", lines
-            // Trim leading empty lines
-            .SkipWhile(string.IsNullOrWhiteSpace)
-            // Trim trailing empty lines
-            .Reverse().SkipWhile(string.IsNullOrWhiteSpace).Reverse()
-            .Select(line => {
-                if (ActionLine.TryParse(line, out var actionLine)) {
-                    return $"{actionLine}{NewLine}";
-                }
 
-                // Trim whitespace and remove invalid characters
-                return new string(line.Trim().Where(c => !char.IsControl(c) && c != char.MaxValue).ToArray()) + $"{NewLine}";
-            }));
+        return string.Join(Environment.NewLine, lines.Select(line =>
+            new string(line.Where(c => !char.IsControl(c) && c != char.MaxValue).ToArray())
+        ));
     }
 
     private Document(string? filePath) {

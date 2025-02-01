@@ -1,4 +1,5 @@
-# CelesteTAS
+# CelesteTAS, but with no trailing newline.
+Uses the Studio v2 behavior for saving documents.
 
 ## TAS tools for Celeste / Everest
 
