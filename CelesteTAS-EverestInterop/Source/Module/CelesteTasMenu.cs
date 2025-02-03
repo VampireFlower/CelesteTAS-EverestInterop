@@ -43,6 +43,10 @@ internal static class CelesteTasMenu {
                 TasSettings.CenterCamera = value));
             subMenu.Add(new TextMenu.OnOff("Center Camera Horizontally Only".ToDialogText(), TasSettings.CenterCameraHorizontallyOnly).Change(value =>
                 TasSettings.CenterCameraHorizontallyOnly = value));
+            TextMenu.Item autoEnableExCameraDynamicsItem;
+            subMenu.Add(autoEnableExCameraDynamicsItem = new TextMenu.OnOff("Auto Enable ExCameraDynamics".ToDialogText(), TasSettings.EnableExCameraDynamicsForCenterCamera).Change(value =>
+                TasSettings.EnableExCameraDynamicsForCenterCamera = value));
+            subMenu.AddDescription(menu, autoEnableExCameraDynamicsItem, "ExCameraDynamics Description".ToDialogText());
             subMenu.Add(new TextMenu.OnOff("Restore Settings".ToDialogText(), TasSettings.RestoreSettings).Change(value =>
                 TasSettings.RestoreSettings = value));
             subMenu.Add(new TextMenu.OnOff("Launch Studio At Boot".ToDialogText(), TasSettings.LaunchStudioAtBoot).Change(value => {
@@ -70,8 +74,6 @@ internal static class CelesteTasMenu {
                 TasSettings.HideFreezeFrames = value));
             subMenu.AddDescription(menu, hideFreezeFramesItem, "Hide Freeze Frames Description 1".ToDialogText());
             subMenu.AddDescription(menu, hideFreezeFramesItem, "Hide Freeze Frames Description 2".ToDialogText());
-            subMenu.Add(new TextMenu.OnOff("Mod 9D Lighting".ToDialogText(), TasSettings.Mod9DLighting).Change(value =>
-                TasSettings.Mod9DLighting = value));
             TextMenu.Item ignoreGcItem;
             subMenu.Add(ignoreGcItem = new TextMenu.OnOff("Ignore GC Collect".ToDialogText(), TasSettings.IgnoreGcCollect).Change(value =>
                 TasSettings.IgnoreGcCollect = value));

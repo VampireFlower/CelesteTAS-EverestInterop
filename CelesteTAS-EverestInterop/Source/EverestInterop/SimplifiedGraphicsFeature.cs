@@ -13,6 +13,7 @@ using Mono.Cecil.Cil;
 using Monocle;
 using MonoMod.Cil;
 using MonoMod.Utils;
+using TAS.Gameplay;
 using TAS.ModInterop;
 using TAS.Module;
 using TAS.Utils;
@@ -192,7 +193,7 @@ public static class SimplifiedGraphicsFeature {
         HookHelper.OverrideReturns(SimplifiedWavedBlock, 0.0f,
             ModUtils.GetTypes()
                 .Where(type => type.FullName?.EndsWith("Renderer+Edge") == true)
-                .Select(type => type.GetMethodInfo("GetWaveAt"))
+                .Select(type => type.GetMethodInfo("GetWaveAt", logFailure: false))
                 .ToArray()
         );
 
@@ -283,7 +284,7 @@ public static class SimplifiedGraphicsFeature {
     private static bool IsSimplifiedLightningStrike() => TasSettings.SimplifiedGraphics && TasSettings.SimplifiedLightningStrike;
     private static bool IsSimplifiedClutteredEntity() => TasSettings.SimplifiedGraphics && TasSettings.SimplifiedClutteredEntity;
     private static bool IsSimplifiedHud() => TasSettings.SimplifiedGraphics && TasSettings.SimplifiedHud ||
-                                             TasSettings.CenterCamera && Math.Abs(CenterCamera.LevelZoom - 1f) > 1e-3;
+                                             TasSettings.CenterCamera && Math.Abs(CenterCamera.ZoomLevel - 1f) > 1e-3;
 
     private static ScreenWipe SimplifiedScreenWipe(ScreenWipe wipe) => TasSettings.SimplifiedGraphics && TasSettings.SimplifiedScreenWipe ? null : wipe;
 
@@ -499,28 +500,8 @@ public static class SimplifiedGraphicsFeature {
         cursor.EmitBrtrue(start);
         cursor.EmitRet();
 
-        int backdropIdx = -1;
-        if (cursor.TryGotoNext(MoveType.After,
-                ins => ins.MatchLdloc(out backdropIdx),
-                ins => ins.MatchLdfld<Backdrop>(nameof(Backdrop.Visible))))
-        {
-            cursor.EmitLdloc(backdropIdx);
-            cursor.EmitDelegate(IsShow9DBlackBackdrop);
-        }
-
         static bool IsNotSimplifiedBackdrop() {
             return !TasSettings.SimplifiedGraphics || !TasSettings.SimplifiedBackdrop;
-        }
-        static bool IsShow9DBlackBackdrop(bool visible, Backdrop backdrop) {
-            if (TasSettings.Enabled && TasSettings.Mod9DLighting && backdrop.Visible && Engine.Scene is Level level) {
-                bool hideBackdrop =
-                    backdrop.Name?.StartsWith("bgs/nameguysdsides") == true &&
-                    (level.Session.Level.StartsWith("g") || level.Session.Level.StartsWith("h")) &&
-                    level.Session.Level != "hh-08";
-                return !hideBackdrop;
-            }
-
-            return visible;
         }
     }
 
