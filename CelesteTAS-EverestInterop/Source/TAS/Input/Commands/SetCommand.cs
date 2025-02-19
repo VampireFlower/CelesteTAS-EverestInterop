@@ -10,11 +10,9 @@ using Monocle;
 using StudioCommunication;
 using StudioCommunication.Util;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.CompilerServices;
 using TAS.Entities;
 using TAS.EverestInterop;
-using TAS.EverestInterop.InfoHUD;
 using TAS.Gameplay;
 using TAS.InfoHUD;
 using TAS.ModInterop;
@@ -144,7 +142,7 @@ public static class SetCommand {
                     foreach (object variant in Enum.GetValues(variantsEnum)) {
                         string typeName = string.Empty;
                         try {
-                            var variantType = ExtendedVariantsInterop.GetVariantType(new Lazy<object>(variant));
+                            var variantType = ExtendedVariantsInterop.GetVariantType(new Lazy<object?>(variant));
                             if (variantType != null) {
                                 typeName = variantType.CSharpName();
                             }
@@ -196,13 +194,13 @@ public static class SetCommand {
         private static IEnumerator<CommandAutoCompleteEntry> GetParameterAutoCompleteEntries(string[] targetArgs) {
             if (targetArgs.Length == 1) {
                 // Vanilla setting / session / assist
-                if (typeof(Settings).GetFieldInfo(targetArgs[0], BindingFlags.Instance | BindingFlags.Public) is { } fSettings) {
+                if (typeof(Settings).GetFieldInfo(targetArgs[0], logFailure: false) is { } fSettings) {
                     return GetParameterTypeAutoCompleteEntries(fSettings.FieldType);
                 }
-                if (typeof(SaveData).GetFieldInfo(targetArgs[0], BindingFlags.Instance | BindingFlags.Public) is { } fSaveData) {
+                if (typeof(SaveData).GetFieldInfo(targetArgs[0], logFailure: false) is { } fSaveData) {
                     return GetParameterTypeAutoCompleteEntries(fSaveData.FieldType);
                 }
-                if (typeof(Assists).GetFieldInfo(targetArgs[0], BindingFlags.Instance | BindingFlags.Public) is { } fAssists) {
+                if (typeof(Assists).GetFieldInfo(targetArgs[0], logFailure: false) is { } fAssists) {
                     return GetParameterTypeAutoCompleteEntries(fAssists.FieldType);
                 }
             }
@@ -251,11 +249,11 @@ public static class SetCommand {
         private static Type RecurseSetType(Type baseType, string[] memberArgs) {
             var type = baseType;
             foreach (string member in memberArgs) {
-                if (type.GetFieldInfo(member) is { } field) {
+                if (type.GetFieldInfo(member, logFailure: false) is { } field) {
                     type = field.FieldType;
                     continue;
                 }
-                if (type.GetPropertyInfo(member) is { } property && property.SetMethod != null) {
+                if (type.GetPropertyInfo(member, logFailure: false) is { } property && property.SetMethod != null) {
                     type = property.PropertyType;
                     continue;
                 }
@@ -346,42 +344,42 @@ public static class SetCommand {
         foreach (var type in baseTypes) {
             if (componentTypes.IsNotEmpty()) {
                 foreach (var componentType in componentTypes) {
-                    (var targetType, bool success) = TargetQuery.ResolveMemberType(componentType, memberArgs);
-                    if (!success) {
-                        ReportError($"Failed to find members '{string.Join('.', memberArgs)}' on type '{componentType}'");
+                    var typeResult = TargetQuery.ResolveMemberType(componentType, memberArgs);
+                    if (typeResult.Failure) {
+                        ReportError(typeResult);
                         return;
                     }
 
-                    (object?[] values, success, string errorMessage) = TargetQuery.ResolveValues(args[1..], [targetType]);
-                    if (!success) {
-                        ReportError(errorMessage);
+                    var valuesResult = TargetQuery.ResolveValues(args[1..], [typeResult]);
+                    if (valuesResult.Failure) {
+                        ReportError(valuesResult);
                         return;
                     }
 
                     var instances = TargetQuery.ResolveTypeInstances(type, [componentType], entityId);
-                    success = TargetQuery.SetMemberValues(componentType, instances, values[0], memberArgs);
-                    if (!success) {
-                        ReportError($"Failed to set members '{string.Join('.', memberArgs)}' of type '{targetType}' on type '{componentType}' to '{values[0]}'");
+                    var setResult = TargetQuery.SetMemberValues(componentType, instances, valuesResult.Value[0], memberArgs);
+                    if (setResult.Failure) {
+                        ReportError($"Failed to set members '{string.Join('.', memberArgs)}' of type '{typeResult.Value}' on type '{componentType}' to '{valuesResult.Value[0]}':\n{setResult.Error}");
                         return;
                     }
                 }
             } else {
-                (var targetType, bool success) = TargetQuery.ResolveMemberType(type, memberArgs);
-                if (!success) {
-                    ReportError($"Failed to find members '{string.Join('.', memberArgs)}' on type '{type}'");
+                var targetResult = TargetQuery.ResolveMemberType(type, memberArgs);
+                if (targetResult.Failure) {
+                    ReportError(targetResult);
                     return;
                 }
 
-                (object?[] values, success, string errorMessage) = TargetQuery.ResolveValues(args[1..], [targetType]);
-                if (!success) {
-                    ReportError(errorMessage);
+                var valuesResult = TargetQuery.ResolveValues(args[1..], [targetResult]);
+                if (valuesResult.Failure) {
+                    ReportError(valuesResult);
                     return;
                 }
 
                 var instances = TargetQuery.ResolveTypeInstances(type, componentTypes, entityId);
-                success = TargetQuery.SetMemberValues(type, instances, values[0], memberArgs);
-                if (!success) {
-                    ReportError($"Failed to set members '{string.Join('.', memberArgs)}' of type '{targetType}' on type '{type}' to '{values[0]}'");
+                var setResult = TargetQuery.SetMemberValues(type, instances, valuesResult.Value[0], memberArgs);
+                if (setResult.Failure) {
+                    ReportError($"Failed to set members '{string.Join('.', memberArgs)}' of type '{targetResult.Value}' on type '{type}' to '{valuesResult.Value[0]}':\n{setResult.Error}");
                     return;
                 }
             }
@@ -392,11 +390,11 @@ public static class SetCommand {
         object? settings = null;
 
         FieldInfo? field;
-        if ((field = typeof(Settings).GetFieldInfo(settingName)) != null) {
+        if ((field = typeof(Settings).GetFieldInfo(settingName, logFailure: false)) != null) {
             settings = Settings.Instance;
-        } else if ((field = typeof(SaveData).GetFieldInfo(settingName)) != null) {
+        } else if ((field = typeof(SaveData).GetFieldInfo(settingName, logFailure: false)) != null) {
             settings = SaveData.Instance;
-        } else if ((field = typeof(Assists).GetFieldInfo(settingName)) != null) {
+        } else if ((field = typeof(Assists).GetFieldInfo(settingName, logFailure: false)) != null) {
             settings = SaveData.Instance.Assists;
         }
 
@@ -404,14 +402,14 @@ public static class SetCommand {
             return;
         }
 
-        (object?[] values, bool success, string errorMessage) = TargetQuery.ResolveValues(valueArgs, [field.FieldType]);
-        if (!success) {
-            ReportError(errorMessage);
+        var valuesResult = TargetQuery.ResolveValues(valueArgs, [field.FieldType]);
+        if (valuesResult.Failure) {
+            ReportError(valuesResult);
             return;
         }
 
-        if (!HandleSpecialCases(settingName, values[0])) {
-            field.SetValue(settings, values[0]);
+        if (!HandleSpecialCases(settingName, valuesResult.Value[0])) {
+            field.SetValue(settings, valuesResult.Value[0]);
 
             // Assists is a struct, so it needs to be re-assign
             if (settings is Assists assists) {
@@ -425,20 +423,20 @@ public static class SetCommand {
         }
     }
     private static void SetExtendedVariant(string variantName, string[] valueArgs) {
-        var variant = new Lazy<object>(ExtendedVariantsInterop.ParseVariant(variantName));
+        var variant = new Lazy<object?>(ExtendedVariantsInterop.ParseVariant(variantName));
         var variantType = ExtendedVariantsInterop.GetVariantType(variant);
         if (variantType is null) {
             ReportError($"Failed to resolve type for extended variant '{variantName}'");
             return;
         }
 
-        (object?[] values, bool success, string errorMessage) = TargetQuery.ResolveValues(valueArgs, [variantType]);
-        if (!success) {
-            ReportError(errorMessage);
+        var valuesResult = TargetQuery.ResolveValues(valueArgs, [variantType]);
+        if (valuesResult.Failure) {
+            ReportError(valuesResult);
             return;
         }
 
-        ExtendedVariantsInterop.SetVariantValue(variant, values[0]);
+        ExtendedVariantsInterop.SetVariantValue(variant, valuesResult.Value[0]);
     }
 
     /// Applies the setting, while handing special cases

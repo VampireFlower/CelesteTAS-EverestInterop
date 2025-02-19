@@ -168,11 +168,13 @@ internal static class CenterCamera {
             moveOffset.Y += ArrowKeySensitivity;
         }
 
-        if (Hotkeys.CameraZoomIn.Check) {
-            zoomDirection -= 1;
-        }
-        if (Hotkeys.CameraZoomOut.Check) {
-            zoomDirection += 1;
+        if (Hotkeys.FreeCamera.Check || Hotkeys.InfoHud.Check) {
+            if (Hotkeys.CameraZoomIn.Check) {
+                zoomDirection -= 1;
+            }
+            if (Hotkeys.CameraZoomOut.Check) {
+                zoomDirection += 1;
+            }
         }
         if (zoomDirection == 0) {
             zoomDirection = -Math.Sign(MouseInput.WheelDelta);
@@ -198,13 +200,14 @@ internal static class CenterCamera {
         if (Hotkeys.FreeCamera.Check && ZoomedOut) {
             canvasOffset += moveOffset;
             changedCanvas = moveOffset != Vector2.Zero;
-        } else if (Hotkeys.InfoHud.Check) {
+        } else if (Hotkeys.FreeCamera.Check || Hotkeys.InfoHud.Check) {
             cameraOffset += moveOffset;
             changedCamera = moveOffset != Vector2.Zero;
         }
 
         // Drag support while holding right mouse button
-        if (MouseInput.Right.Check) {
+        // Avoid panning while selecting an area
+        if (MouseInput.Right.Check && !Hotkeys.InfoHud.Check) {
             float scale = ZoomLevel * level.Camera.Zoom * (Celeste.Celeste.TargetWidth / Celeste.Celeste.GameWidth) * Engine.ViewWidth / Engine.Width;
 
             var mouseOffset = MouseInput.PositionDelta / scale;
@@ -235,7 +238,7 @@ internal static class CenterCamera {
             }
             if (changedCanvas) {
                 var result = (target + cameraOffset + canvasOffset).Clamp(bounds.X, bounds.Y, bounds.Right, bounds.Bottom);
-                canvasOffset = result - target - moveOffset;
+                canvasOffset = result - target - cameraOffset;
             }
         }
     }
